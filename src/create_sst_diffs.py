@@ -137,7 +137,7 @@ def make_sst_filename(keyspace):
 
 
 def get_partitions(table, pk):
-    query = "SELECT distinct %s FROM %s limit 10" % (pk, table)
+    query = "SELECT distinct %s FROM %s" % (pk, table)
     statement = SimpleStatement(query)
     paging_state = True
     values = []
