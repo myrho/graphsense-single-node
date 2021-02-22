@@ -14,6 +14,7 @@ import tempfile
 from datetime import datetime
 
 c_max = 0
+batchsize = 10000
 
 logformat = '%(asctime)-15s %(message)s'
 loglevel = logging.INFO
@@ -159,50 +160,53 @@ def diffdump_table(db, sst_file_writer, keyspace, table):
     pks = cluster.metadata.keyspaces[keyspace].tables[table].primary_key
     logger.info('Lookup partitions...')
     logger.debug('type pk {}'.format(pks[0].cql_type))
-    partitions = get_partitions(table, pks[0].name)
     order_keys = ','.join([(pk.name + " ASC") for pk in pks[1:]])
     if order_keys:
         order_keys = "ORDER BY " + order_keys
 
+    partitions = get_partitions(table, pks[0].name)
     logger.info('Found %i partitions' % len(partitions))
     statement = session.prepare(
                     "SELECT * FROM %s WHERE %s=? %s"
                     % (table, pks[0].name, order_keys))
     for partition in partitions:
             logger.debug('partition {}'.format(partition))
-    statements_and_params = ((statement,
-                              (int(partition)
-                               if 'int' in pks[0].cql_type
-                               else partition,))
-                             for partition in partitions)
-    c = 0
-    logger.info('Query cassandra for each partition concurrently'
-                ' and write to sst file...')
-    results = execute_concurrent(session,
-                                 statements_and_params,
-                                 raise_on_first_error=True,
-                                 results_generator=True)
-    i = 0
-    for (success, result) in results:
-        if not success:
-            logger.error('ERROR retrieving result: {}'
-                         .format(format_exception(result)))
-            continue
-        for row in result:
-            if c_max > 0 and c > c_max:
-                break
-            c += 1
-            key = make_key(table, pks, row)
-            value = make_value(row)
-            current = db.get(read_opts, key)
-            logger.debug("key %s, value %s" % (key, value))
-            logger.debug("current %s" % current.data)
-
-            if current.status.ok() and current.data == value:
+    for j in range(0, len(partitions), batchsize):
+        k = j+batchsize
+        statements_and_params = ((statement,
+                                  (int(partition)
+                                   if 'int' in pks[0].cql_type
+                                   else partition,))
+                                 for partition
+                                 in partition[j:k])
+        c = 0
+        logger.info('Query cassandra for partitions {} to {} concurrently'
+                    ' and write to sst file...'.format(j, k))
+        results = execute_concurrent(session,
+                                     statements_and_params,
+                                     raise_on_first_error=True,
+                                     results_generator=True)
+        i = 0
+        for (success, result) in results:
+            if not success:
+                logger.error('ERROR retrieving result: {}'
+                             .format(format_exception(result)))
                 continue
-            logger.debug('insert/update')
-            i += 1
-            sst_file_writer.put(key, value)
+            for row in result:
+                if c_max > 0 and c > c_max:
+                    break
+                c += 1
+                key = make_key(table, pks, row)
+                value = make_value(row)
+                current = db.get(read_opts, key)
+                logger.debug("key %s, value %s" % (key, value))
+                logger.debug("current %s" % current.data)
+
+                if current.status.ok() and current.data == value:
+                    continue
+                logger.debug('insert/update')
+                i += 1
+                sst_file_writer.put(key, value)
     logger.info('Found %i diffs for %s.%s' % (i, keyspace, table))
     return i
 
