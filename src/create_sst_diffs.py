@@ -177,8 +177,7 @@ def diffdump_table(db, sst_file_writer, keyspace, table):
                                   (int(partition)
                                    if 'int' in pks[0].cql_type
                                    else partition,))
-                                 for partition
-                                 in partition[j:k])
+                                 for partition in partitions[j:k])
         c = 0
         logger.info('Query cassandra for partitions {} to {} concurrently'
                     ' and write to sst file...'.format(j, k))
