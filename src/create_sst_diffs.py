@@ -14,7 +14,7 @@ import tempfile
 from datetime import datetime
 
 c_max = 0
-batchsize = 10
+batchsize = 10000
 
 logformat = '%(asctime)-15s %(message)s'
 loglevel = logging.INFO
@@ -140,7 +140,7 @@ def make_sst_filename(keyspace):
 
 
 def get_partitions(table, pk):
-    query = "SELECT distinct %s FROM %s limit 22" % (pk, table)
+    query = "SELECT distinct %s FROM %s" % (pk, table)
     statement = SimpleStatement(query)
     paging_state = True
     values = []
