@@ -14,7 +14,7 @@ import tempfile
 from datetime import datetime
 
 c_max = 0
-batchsize = 10000
+batchsize = 10
 
 logformat = '%(asctime)-15s %(message)s'
 loglevel = logging.INFO
@@ -57,9 +57,11 @@ args = parser.parse_args()
 print(args)
 
 logger.info("Opening new Cassandra cluster connection: {}".format(args.nodes))
-cluster = Cluster(args.nodes)
+cluster = Cluster(contact_points=args.nodes, protocol_version=4)
 session = cluster.connect()
 session.row_factory = ordered_dict_factory
+session.default_fetch_size = None
+session.default_timeout = None
 
 read_opts = ReadOptions()
 write_opts = WriteOptions()
@@ -138,7 +140,7 @@ def make_sst_filename(keyspace):
 
 
 def get_partitions(table, pk):
-    query = "SELECT distinct %s FROM %s" % (pk, table)
+    query = "SELECT distinct %s FROM %s limit 22" % (pk, table)
     statement = SimpleStatement(query)
     paging_state = True
     values = []
