@@ -57,7 +57,8 @@ args = parser.parse_args()
 print(args)
 
 logger.info("Opening new Cassandra cluster connection: {}".format(args.nodes))
-cluster = Cluster(contact_points=args.nodes, protocol_version=4)
+cluster = Cluster(contact_points=args.nodes, protocol_version=4,
+                  connect_timeout=300)
 session = cluster.connect()
 session.row_factory = ordered_dict_factory
 session.default_fetch_size = None
