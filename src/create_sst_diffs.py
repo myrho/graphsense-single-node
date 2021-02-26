@@ -14,7 +14,6 @@ import tempfile
 from datetime import datetime
 
 c_max = 0
-batchsize = 1000
 
 logformat = '%(asctime)-15s %(message)s'
 loglevel = logging.INFO
@@ -50,6 +49,9 @@ parser.add_argument('keyspace', type=str,
                     help='keyspace to grab')
 parser.add_argument('--table', type=str,
                     help='optionally the table to grab')
+parser.add_argument('--splitsize', type=str,
+                    help=('concurrencly query partitions'
+                          'in splits of this size'))
 parser.add_argument('nodes', type=str, nargs='+',
                     help='cassandra nodes')
 
@@ -171,8 +173,10 @@ def diffdump_table(db, sst_file_writer, keyspace, table):
     statement = session.prepare(
                     "SELECT * FROM %s.%s WHERE %s=? %s"
                     % (keyspace, table, pks[0].name, order_keys))
-    for j in range(0, len(partitions), batchsize):
-        k = j+batchsize
+    splitsize = \
+        int(args.splitsize) if args.splitsize is not None else len(partitions)
+    for j in range(0, len(partitions), splitsize):
+        k = j+splitsize
         statements_and_params = ((statement,
                                   (int(partition)
                                    if 'int' in pks[0].cql_type

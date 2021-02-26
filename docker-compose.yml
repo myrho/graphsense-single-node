@@ -9,6 +9,6 @@ services:
         volumes:
           - ./sst_diffs:/sst_diffs
           - ./src:/src
-        command: python /src/create_sst_diffs.py btc_transformed btc_transformed_20210123 192.168.243.101 192.168.243.102 192.168.243.103 192.168.243.104 192.168.243.105 192.168.243.106 192.168.243.107 192.168.243.108 --table address
+        command: python /src/create_sst_diffs.py bch_transformed bchn_transformed_20210219 192.168.243.101 192.168.243.102 192.168.243.103 192.168.243.104 192.168.243.105 192.168.243.106 192.168.243.107 192.168.243.108 --table cluster_incoming_relations --splitsize 100
           
 
