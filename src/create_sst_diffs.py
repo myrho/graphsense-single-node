@@ -140,8 +140,8 @@ def make_sst_filename(keyspace):
     return "%s_%s.sst" % (keyspace, timestamp)
 
 
-def get_partitions(table, pk):
-    query = "SELECT distinct %s FROM %s" % (pk, table)
+def get_partitions(keyspace, table, pk):
+    query = "SELECT distinct %s FROM %s.%s" % (pk, keyspace, table)
     statement = SimpleStatement(query)
     paging_state = True
     values = []
@@ -162,18 +162,15 @@ def diffdump_table(db, sst_file_writer, keyspace, table):
     logger.info("Diff-dumping %s" % table)
     pks = cluster.metadata.keyspaces[keyspace].tables[table].primary_key
     logger.info('Lookup partitions...')
-    logger.debug('type pk {}'.format(pks[0].cql_type))
     order_keys = ','.join([(pk.name + " ASC") for pk in pks[1:]])
     if order_keys:
         order_keys = "ORDER BY " + order_keys
 
-    partitions = get_partitions(table, pks[0].name)
+    partitions = get_partitions(keyspace, table, pks[0].name)
     logger.info('Found %i partitions' % len(partitions))
     statement = session.prepare(
-                    "SELECT * FROM %s WHERE %s=? %s"
-                    % (table, pks[0].name, order_keys))
-    for partition in partitions:
-            logger.debug('partition {}'.format(partition))
+                    "SELECT * FROM %s.%s WHERE %s=? %s"
+                    % (keyspace, table, pks[0].name, order_keys))
     for j in range(0, len(partitions), batchsize):
         k = j+batchsize
         statements_and_params = ((statement,
@@ -201,12 +198,12 @@ def diffdump_table(db, sst_file_writer, keyspace, table):
                 key = make_key(table, pks, row)
                 value = make_value(row)
                 current = db.get(read_opts, key)
-                logger.debug("key %s, value %s" % (key, value))
-                logger.debug("current %s" % current.data)
+                # logger.debug("key %s, value %s" % (key, value))
+                # logger.debug("current %s" % current.data)
 
                 if current.status.ok() and current.data == value:
                     continue
-                logger.debug('insert/update')
+                # logger.debug('insert/update')
                 i += 1
                 sst_file_writer.put(key, value)
     logger.info('Found %i diffs for %s.%s' % (i, keyspace, table))
@@ -226,7 +223,7 @@ def diffdump(sst_dir, keyspace):
     opts.create_if_missing = True
     with tempfile.TemporaryDirectory() as db_path:
         path = os.path.join(db_path, keyspace)
-        logger.debug('db_path {}'.format(path))
+        # logger.debug('db_path {}'.format(path))
         s = db.open(opts, path)
         if not s.ok():
             raise RuntimeError("Could not open db %s" % path)
