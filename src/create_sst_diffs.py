@@ -14,7 +14,7 @@ import tempfile
 from datetime import datetime
 
 c_max = 0
-batchsize = 10000
+batchsize = 1000
 
 logformat = '%(asctime)-15s %(message)s'
 loglevel = logging.INFO
